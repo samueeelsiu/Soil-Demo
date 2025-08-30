@@ -653,7 +653,7 @@
             document.getElementById('poorDrainageCount').textContent = formatNumber(poorDrainageCount);
             
             const floodRiskCount = (soilAnalysisData.flooding_freq_stats?.counts?.['Occasional'] || 0) +
-                                  (soilAnalysisData.flooding_freq_stats?.counts?.['Frequent'] || 0);
+                                  (soilAnalysisData.flooding_freq_stats?.counts?.['High'] || 0);
             document.getElementById('floodRiskCount').textContent = formatNumber(floodRiskCount);
         }
         
