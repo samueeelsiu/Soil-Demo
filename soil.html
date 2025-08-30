@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Massachusetts Soil Analysis Dashboard(Demo)</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body.professional-theme {
+            background: #f5f5f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .professional-theme .container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            animation: none;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .professional-theme .header {
+            background: #2c3e50;
+            padding: 30px 40px;
+        }
+        
+        .header {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 50px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .professional-theme .header h1 {
+            font-size: 2.2em;
+            text-shadow: none;
+            font-weight: 400;
+        }
+        
+        .header h1 {
+            font-size: 2.8em;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .professional-theme .header p {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content {
+            padding: 40px;
+            min-height: 600px;
+        }
+        
+        .section {
+            display: block;
+        }
+        
+        .professional-theme .section-header {
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .section-header {
+            margin-bottom: 35px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #f0f0f0;
+            position: relative;
+        }
+        
+        .professional-theme .section-header::after {
+            background: #2c3e50;
+            height: 2px;
+            bottom: -2px;
+        }
+        
+        .section-header::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: 0;
+            width: 100px;
+            height: 3px;
+            background: #8B4513;
+        }
+        
+        .professional-theme .section-header h2 {
+            font-size: 1.8em;
+            font-weight: 500;
+        }
+        
+        .section-header h2 {
+            color: #333;
+            font-size: 2.2em;
+            margin-bottom: 12px;
+        }
+        
+        .professional-theme .section-header p {
+            font-size: 1em;
+        }
+        
+        .section-header p {
+            color: #666;
+            font-size: 1.15em;
+            line-height: 1.6;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 35px;
+        }
+        
+        .professional-theme .stat-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 25px;
+            color: #333;
+        }
+        
+        .stat-card.soil-card {
+            background: var(--soil-gradient);
+        }
+        
+        .professional-theme .stat-card.soil-card {
+            background: white;
+            border-color: #8B4513;
+        }
+        
+        .professional-theme .stat-card:hover {
+            transform: none;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .professional-theme .stat-value {
+            font-size: 2.5em;
+            font-weight: 600;
+            text-shadow: none;
+            color: #2c3e50;
+        }
+        
+        .stat-value {
+            font-size: 3em;
+            font-weight: 800;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .professional-theme .stat-label {
+            opacity: 1;
+            font-weight: 500;
+            color: #6c757d;
+        }
+        
+        .stat-label {
+            font-size: 1.1em;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            font-weight: 600;
+        }
+        
+        .professional-theme .controls {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 20px;
+            box-shadow: none;
+            border: 1px solid #dee2e6;
+        }
+        
+        .controls {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .control-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .professional-theme .control-group label {
+            font-weight: 600;
+        }
+        
+        .control-group label {
+            font-weight: 700;
+            color: #495057;
+            min-width: 120px;
+        }
+        
+        .professional-theme .control-group select {
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 8px 12px;
+        }
+        
+        .control-group select {
+            padding: 10px 18px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            background: white;
+            min-width: 150px;
+        }
+        
+        .professional-theme .control-group select:focus {
+            border-color: #2c3e50;
+            box-shadow: none;
+        }
+        
+        .toggle-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .toggle-switch input[type="checkbox"] {
+            width: 50px;
+            height: 26px;
+            appearance: none;
+            background: #ddd;
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle-switch input[type="checkbox"]:checked {
+            background: #667eea;
+        }
+        
+        .professional-theme .toggle-switch input[type="checkbox"]:checked {
+            background: #2c3e50;
+        }
+        
+        .toggle-switch input[type="checkbox"]::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: white;
+            top: 2px;
+            left: 2px;
+            transition: left 0.3s;
+        }
+        
+        .toggle-switch input[type="checkbox"]:checked::after {
+            left: 26px;
+        }
+        
+        .professional-theme .chart-container {
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
+        }
+        
+        .professional-theme .chart-container:hover {
+            transform: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .professional-theme .map-container {
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .map-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            min-height: 600px;
+        }
+        
+        .info-box.soil-info {
+            background: linear-gradient(135deg, #f4e4c1 0%, #e8d4a1 100%);
+            border-left-color: #8B4513;
+        }
+        
+        .professional-theme .info-box.soil-info {
+            background: #faf0e6;
+            border-left-color: #8B4513;
+        }
+        
+        .info-box {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 25px;
+            border-radius: 15px;
+            border-left: 5px solid #2196f3;
+            margin-bottom: 25px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .professional-theme .info-box {
+            background: #f0f8ff;
+            border-radius: 4px;
+            border-left: 4px solid #2196f3;
+            padding: 20px;
+        }
+        
+        .info-box.soil-info h3 {
+            color: #6B4423;
+        }
+        
+        .professional-theme .info-box h3 {
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+        
+        .info-box h3 {
+            color: #1565c0;
+            margin-bottom: 12px;
+            font-size: 1.3em;
+        }
+        
+        .info-box.soil-info p {
+            color: #5D4E37;
+        }
+        
+        .professional-theme .info-box p {
+            color: #333;
+        }
+        
+        .info-box p {
+            color: #0d47a1;
+            line-height: 1.6;
+        }
+        
+        .professional-theme .warning-box {
+            background: #fff9e6;
+            border-radius: 4px;
+            border-left: 4px solid #ff9800;
+        }
+        
+        .warning-box {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #ff9800;
+            margin: 20px 0;
+        }
+        
+        .professional-theme .warning-box h4 {
+            font-weight: 600;
+        }
+        
+        .warning-box h4 {
+            color: #e65100;
+            margin-bottom: 10px;
+        }
+        
+        .professional-theme .warning-box p {
+            color: #666;
+        }
+        
+        .warning-box p {
+            color: #bf360c;
+            line-height: 1.5;
+        }
+        
+        .error-box {
+            background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #f44336;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .professional-theme .error-box {
+            background: #ffebee;
+            border-radius: 4px;
+            border-left: 4px solid #f44336;
+        }
+        
+        .error-box.show {
+            display: block;
+        }
+        
+        :root {
+            --soil-gradient: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+        }
+    </style>
+</head>
+<body class="professional-theme">
+    
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>Massachusetts Soil Analysis Dashboard(Demo)</h1>
+            <p>Comprehensive analysis of soil conditions and their impact on building infrastructure</p>
+        </div>
+        
+        <div class="content">
+            <div id="soilAnalysis" class="section">
+                <div class="section-header">
+                    <h2>Soil Properties and Risk Analysis</h2>
+                    <p>Comprehensive analysis of soil conditions and their impact on building infrastructure</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card soil-card">
+                        <div class="stat-value" id="highRiskBuildings">Loading...</div>
+                        <div class="stat-label">High Risk Buildings</div>
+                    </div>
+                    <div class="stat-card soil-card">
+                        <div class="stat-value" id="avgWaterTable">Loading...</div>
+                        <div class="stat-label">Avg Water Table (cm)</div>
+                    </div>
+                    <div class="stat-card soil-card">
+                        <div class="stat-value" id="poorDrainageCount">Loading...</div>
+                        <div class="stat-label">Poor Drainage Sites</div>
+                    </div>
+                    <div class="stat-card soil-card">
+                        <div class="stat-value" id="floodRiskCount">Loading...</div>
+                        <div class="stat-label">Flood Risk Buildings</div>
+                    </div>
+                </div>
+                
+                <div class="info-box soil-info">
+                    <h3>Soil Data Categories</h3>
+                    <p><strong>Drainage Classes:</strong> Well drained, Moderately well drained, Somewhat excessively drained, Poorly drained, Very poorly drained, Excessively drained<br>
+                    <strong>Flooding Frequency:</strong> None, Very rare, Rare, Occasional, Frequent<br>
+                    <strong>Engineering Properties:</strong> <= 0.17 Favorable,	> 0.17 and <= 0.24 Fair, > 0.24 and <= 0.32	Poor,  > 0.32 Very poor<br>
+                </div>
+                
+                <div class="controls">
+                    <div class="control-group">
+                        <label>Analysis Type:</label>
+                        <select id="soilAnalysisType" onchange="updateSoilAnalysis()">
+                            <option value="drainage">Drainage Class</option>
+                            <option value="flooding">Flooding Frequency</option>
+                            <option value="engineering">Engineering Properties</option>
+                            <option value="risk">Risk Assessment</option>
+                        </select>
+                        
+                        
+                        <div class="toggle-switch">
+                            <label>Show Risk Overlay(*For Map plot):</label>
+                            <input type="checkbox" id="showRiskOverlay" onchange="updateSoilMap()">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <div id="soilDistributionChart"></div>
+                </div>
+                
+                <div class="chart-container">
+                    <div id="soilByOccupancyChart"></div>
+                </div>
+                
+                <div class="map-container">
+                    <div id="soilMap"></div>
+                </div>
+                
+                
+                <div class="chart-container">
+                    <div id="waterTableHistogram"></div>
+                </div>
+                
+                <div class="warning-box">
+                    <h4>Risk Assessment Methodology</h4>
+                    <p>High-risk buildings are identified based on poor drainage conditions (Poorly drained or Very poorly drained) 
+                    and/or frequent flooding risk (Occasional or Frequent). These conditions can impact foundation stability, 
+                    basement flooding potential, and overall structural integrity over time. Buildings in high-risk zones may 
+                    require additional maintenance and waterproofing measures.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="error-box" id="errorBox">
+            <h3>Error Loading Data</h3>
+            <p id="errorMessage">Unable to load soil data. Please ensure building_data.json is in the same directory.</p>
+        </div>
+    </div>
+    
+    <script>
+        // Global variables
+        let buildingData = null;
+        let soilAnalysisData = null;
+        
+        // Soil-specific colors
+        const soilColors = {
+            drainage: {
+                'Well drained': '#2E7D32',
+                'Moderately well drained': '#66BB6A',
+                'Somewhat excessively drained': '#FDD835',
+                'Poorly drained': '#FF9800',
+                'Very poorly drained': '#E53935',
+                'Excessively drained': '#1565C0'
+            },
+            flooding: {
+                'Low': '#FDD835', 
+                'Moderate': '#FF9800', 
+                'High': '#E53935'
+            },
+            engineering: {
+                'Favorable': '#2E7D32',
+                'Fair': '#FDD835',
+                'Poor': '#FF9800',
+                'Very poor': '#E53935'
+            }
+        };
+        
+        const plasmaColors = [
+            '#0d0887', '#46039f', '#7201a8', '#9c179e', '#bd3786',
+            '#d8576b', '#ed7953', '#fb9f3a', '#fdca26', '#f0f921'
+        ];
+        
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+        });
+        
+        async function loadData() {
+            try {
+                console.log('Loading building_data.json...');
+                
+                const response = await fetch('building_data.json');
+                if (!response.ok) {
+                    throw new Error('Failed to load data file');
+                }
+                
+                buildingData = await response.json();
+                
+                if (buildingData.soil_analysis) {
+                    soilAnalysisData = buildingData.soil_analysis;
+                    console.log('Soil analysis data loaded');
+                } else {
+                    throw new Error('No soil analysis data found in file');
+                }
+                
+                document.getElementById('loadingOverlay').classList.add('hidden');
+                
+                initializeDashboard();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loadingOverlay').classList.add('hidden');
+                document.getElementById('errorBox').classList.add('show');
+                document.getElementById('errorMessage').textContent = error.message;
+            }
+        }
+        
+        function initializeDashboard() {
+            updateStatistics();
+            updateSoilAnalysis();
+        }
+        
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+        
+        function updateStatistics() {
+            if (!soilAnalysisData) return;
+            
+            document.getElementById('highRiskBuildings').textContent = formatNumber(soilAnalysisData.soil_risk_analysis?.high_risk_count || 0);
+            document.getElementById('avgWaterTable').textContent = Math.round(soilAnalysisData.water_table_stats?.mean || 0).toString();
+            
+            const poorDrainageCount = (soilAnalysisData.drainage_class_stats?.counts?.['Poorly drained'] || 0) +
+                                     (soilAnalysisData.drainage_class_stats?.counts?.['Very poorly drained'] || 0);
+            document.getElementById('poorDrainageCount').textContent = formatNumber(poorDrainageCount);
+            
+            const floodRiskCount = (soilAnalysisData.flooding_freq_stats?.counts?.['Occasional'] || 0) +
+                                  (soilAnalysisData.flooding_freq_stats?.counts?.['Frequent'] || 0);
+            document.getElementById('floodRiskCount').textContent = formatNumber(floodRiskCount);
+        }
+        
+        function updateSoilAnalysis() {
+            if (!soilAnalysisData) {
+                console.warn('No soil analysis data available');
+                return;
+            }
+            
+            const analysisType = document.getElementById('soilAnalysisType').value;
+            
+            updateSoilDistributionChart(analysisType);
+            updateSoilByOccupancyChart(analysisType);
+            updateSoilMap();
+            updateWaterTableHistogram();
+        }
+        
+        function updateSoilDistributionChart(analysisType) {
+            let data, title, colors;
+            
+            switch(analysisType) {
+                case 'drainage':
+                    data = soilAnalysisData.drainage_class_stats;
+                    title = 'Buildings by Drainage Class';
+                    colors = Object.values(soilColors.drainage);
+                    break;
+                case 'flooding':
+                    data = soilAnalysisData.flooding_freq_stats;
+                    title = 'Buildings by Flooding Frequency';
+                    colors = Object.values(soilColors.flooding);
+                    break;
+                case 'engineering':
+                    data = soilAnalysisData.engineering_property_stats;
+                    title = 'Buildings by Engineering Properties';
+                    colors = Object.values(soilColors.engineering);
+                    break;
+                case 'watertable':
+                    updateWaterTableChart();
+                    return;
+                case 'risk':
+                    updateRiskAssessmentChart();
+                    return;
+            }
+            
+            if (!data || !data.counts) {
+                console.warn('No data available for', analysisType);
+                return;
+            }
+            
+            const sortedData = Object.entries(data.counts).sort((a, b) => b[1] - a[1]);
+            
+            const barData = [{
+                x: sortedData.map(([k, v]) => {
+                    return k.replace(' drained', '')
+                            .replace('Excessively', 'Excessive')
+                            .replace('Moderately well', 'Moderate')
+                            .replace('Somewhat excessively', 'Somewhat');
+                }),
+                y: sortedData.map(([k, v]) => v),
+                type: 'bar',
+                marker: {
+                    color: sortedData.map(([k, v]) => {
+                        if (analysisType === 'drainage') return soilColors.drainage[k] || '#888';
+                        if (analysisType === 'flooding') return soilColors.flooding[k] || '#888';
+                        if (analysisType === 'engineering') return soilColors.engineering[k] || '#888';
+                        return colors[sortedData.findIndex(item => item[0] === k) % colors.length];
+                    }),
+                    line: {
+                        color: 'white',
+                        width: 1
+                    }
+                },
+                text: sortedData.map(([k, v]) => `${(data.percentages[k] || 0).toFixed(1)}%`),
+            }];
+            
+            const layout = {
+                title: {
+                    text: title,
+                    font: { size: 20, color: '#333' }
+                },
+                xaxis: { 
+                    title: analysisType.charAt(0).toUpperCase() + analysisType.slice(1) + ' Category',
+                    tickangle: -45
+                },
+                yaxis: { 
+                    title: 'Number of Buildings'
+                },
+                height: 450,
+                showlegend: false
+            };
+            
+            Plotly.newPlot('soilDistributionChart', barData, layout, {responsive: true});
+        }
+        
+        function updateWaterTableChart() {
+            const stats = soilAnalysisData.water_table_stats;
+            
+            if (!stats) {
+                console.warn('No water table data available');
+                return;
+            }
+            
+            const actualData = soilAnalysisData.spatial_distribution
+                .map(d => d.water_table)
+                .filter(val => val !== undefined && val !== null);
+
+            const boxData = [{
+                y: actualData,
+                type: 'box',
+                name: 'Water Table Depth',
+                marker: {
+                    color: '#4169E1'
+                },
+                boxmean: 'sd'
+            }];
+            
+            const layout = {
+                title: {
+                    text: 'Water Table Depth Distribution',
+                    font: { size: 20, color: '#333' }
+                },
+                yaxis: { 
+                    title: 'Depth (cm)',
+                    range: [0, 300]
+                },
+                height: 450,
+                annotations: [
+                    {
+                        x: 0,
+                        y: stats.mean,
+                        xref: 'x',
+                        yref: 'y',
+                        text: `Mean: ${stats.mean.toFixed(1)} cm`,
+                        showarrow: true,
+                        arrowhead: 2,
+                        ax: 40,
+                        ay: 0
+                    }
+                ]
+            };
+            
+            Plotly.newPlot('soilDistributionChart', boxData, layout, {responsive: true});
+        }
+        
+        function updateRiskAssessmentChart() {
+            const riskData = soilAnalysisData.soil_risk_analysis;
+            
+            if (!riskData) {
+                console.warn('No risk assessment data available');
+                return;
+            }
+            
+            const pieData = [{
+                values: [riskData.high_risk_count, buildingData.metadata.total_buildings - riskData.high_risk_count],
+                labels: ['High Risk', 'Low/Moderate Risk'],
+                type: 'pie',
+                hole: 0.4,
+                marker: {
+                    colors: ['#E53935', '#2E7D32']
+                },
+                textinfo: 'label+percent',
+                hovertemplate: '%{label}<br>Count: %{value:,}<br>%{percent}<extra></extra>'
+            }];
+            
+            const layout = {
+                title: {
+                    text: 'Building Risk Assessment',
+                    font: { size: 20, color: '#333' }
+                },
+                height: 450,
+                annotations: [
+                    {
+                        x: 0.5,
+                        y: 0.5,
+                        xref: 'paper',
+                        yref: 'paper',
+                        text: `${riskData.high_risk_percentage}%<br>High Risk`,
+                        showarrow: false,
+                        font: {
+                            size: 20,
+                            color: '#E53935'
+                        }
+                    }
+                ]
+            };
+            
+            Plotly.newPlot('soilDistributionChart', pieData, layout, {responsive: true});
+        }
+        
+        function updateSoilByOccupancyChart(analysisType) {
+                if (analysisType === 'risk') {
+                document.getElementById('soilByOccupancyChart').innerHTML = '';
+                return;
+            }
+            
+            if (!soilAnalysisData || !soilAnalysisData.soil_by_occupancy) {
+                console.warn('No occupancy-based soil data available');
+                return;
+            }
+
+            if (!soilAnalysisData || !soilAnalysisData.soil_by_occupancy) {
+                console.warn('No occupancy-based soil data available');
+                return;
+            }
+            console.log('First occupancy data:', soilAnalysisData.soil_by_occupancy['Residential']);
+            console.log('All occupancy keys:', Object.keys(soilAnalysisData.soil_by_occupancy));
+    
+           const occupancies = ['Residential', 'Commercial', 'Industrial', 'Agriculture', 
+                    'Government', 'Assembly', 'Education', 'Utility and Misc', 'Unclassified']; 
+            const categories = analysisType === 'drainage' ? 
+                            ['Well drained', 'Moderately well drained', 'Poorly drained', 'Very poorly drained', 'Somewhat excessively drained', 'Excessively drained'] :
+                            analysisType === 'flooding' ?
+                            ['Low', 'Moderate', 'High']:
+                            ['Favorable', 'Fair', 'Poor', 'Very poor'];
+            
+            const traces = categories.map((cat, i) => ({
+                x: occupancies,
+                y: occupancies.map(occ => {
+                    const dataField = analysisType === 'drainage' ? 'drainage_distribution' :
+                                    analysisType === 'flooding' ? 'flooding_distribution' :
+                                    'engineering_distribution';
+                    return soilAnalysisData.soil_by_occupancy[occ]?.[dataField]?.[cat] || 0;
+                }),
+                name: cat,
+                type: 'bar',
+                marker: {
+                    color: plasmaColors[i % plasmaColors.length]
+                }
+            }));
+            
+            const layout = {
+                title: {
+                    text: `${analysisType.charAt(0).toUpperCase() + analysisType.slice(1)} by Occupancy Class`,
+                    font: { size: 20, color: '#333' }
+                },
+                xaxis: { title: 'Occupancy Class' },
+                yaxis: { title: 'Number of Buildings' },
+                barmode: 'stack',
+                height: 450
+            };
+            
+            Plotly.newPlot('soilByOccupancyChart', traces, layout, {responsive: true});
+        }
+        
+        function updateSoilMap() {
+            if (!soilAnalysisData || !soilAnalysisData.spatial_distribution) {
+                console.warn('No spatial distribution data available');
+                return;
+            }
+            
+            const showRiskOverlay = document.getElementById('showRiskOverlay').checked;
+            const mapData = soilAnalysisData.spatial_distribution;
+            
+            const scatterData = [{
+                type: 'scattermapbox',
+                mode: 'markers',
+                lon: mapData.map(d => d.lon),
+                lat: mapData.map(d => d.lat),
+                marker: {
+                    size: 8,
+                    color: mapData.map(d => {
+                        if (showRiskOverlay) {
+                            const isHighRisk = (d.drainage === 'Poorly drained' || 
+                                              d.drainage === 'Very poorly drained' ||
+                                              d.flooding === 'Frequent' || 
+                                              d.flooding === 'Occasional');
+                            return isHighRisk ? '#E53935' : '#2E7D32';
+                        } else {
+                            return soilColors.drainage[d.drainage] || '#888';
+                        }
+                    }),
+                    opacity: 0.6
+                },
+                text: mapData.map(d => 
+                    `${d.occupancy}<br>` +
+                    `Year: ${d.year_built}<br>` +
+                    `Area: ${Math.round(d.area)} sqm<br>` +
+                    `Drainage: ${d.drainage || 'N/A'}<br>` +
+                    `Flooding: ${d.flooding || 'N/A'}`
+                ),
+                hovertemplate: '%{text}<extra></extra>'
+            }];
+            
+            const layout = {
+                title: {
+                    text: showRiskOverlay ? 'Building Risk Map' : 'Soil Drainage Map',
+                    font: { size: 20, color: '#333' }
+                },
+                mapbox: {
+                    style: 'open-street-map',
+                    center: { lat: 42.3601, lon: -71.0589 },
+                    zoom: 8
+                },
+                height: 600,
+                margin: { t: 50, b: 0, l: 0, r: 0 }
+            };
+            
+            Plotly.newPlot('soilMap', scatterData, layout, {responsive: true});
+        }
+        
+        
+        function updateWaterTableHistogram() {
+            if (!soilAnalysisData || !soilAnalysisData.water_table_stats) {
+                console.warn('No water table data available');
+                return;
+            }
+            
+            const stats = soilAnalysisData.water_table_stats;  
+            
+
+            const sampleData = soilAnalysisData.spatial_distribution
+                .map(d => d.water_table)
+                .filter(val => val !== undefined && val !== null);
+            
+            const histData = [{
+                x: sampleData,
+                type: 'histogram',
+                nbinsx: 30,
+                marker: {
+                    color: '#4169E1',
+                    line: {
+                        color: 'white',
+                        width: 1
+                    }
+                },
+                hovertemplate: 'Depth Range: %{x}<br>Count: %{y}<extra></extra>'
+            }];
+            
+            const layout = {
+                title: {
+                    text: 'Water Table Depth Distribution',
+                    font: { size: 20, color: '#333' }
+                },
+                xaxis: { 
+                    title: 'Water Table Depth (cm)',
+                    range: [0, 300]
+                },
+                yaxis: { 
+                    title: 'Number of Buildings'
+                },
+                height: 400,
+                shapes: [
+                    {
+                        type: 'line',
+                        x0: stats.mean,
+                        x1: stats.mean,
+                        y0: 0,
+                        y1: 1,
+                        yref: 'paper',
+                        line: {
+                            color: 'red',
+                            width: 2,
+                            dash: 'dash'
+                        }
+                    }
+                ],
+                annotations: [
+                    {
+                        x: stats.mean,
+                        y: 1,
+                        yref: 'paper',
+                        text: `Mean: ${stats.mean.toFixed(1)} cm`,
+                        showarrow: true,
+                        arrowhead: 2,
+                        ax: 30,
+                        ay: -30
+                    }
+                ]
+            };
+            
+            Plotly.newPlot('waterTableHistogram', histData, layout, {responsive: true});
+        }
+    </script>
+</body>
+</html>
